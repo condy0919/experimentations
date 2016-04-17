@@ -84,6 +84,7 @@ public:
         }
     }
 
+private:
     void process(struct inotify_event* pevent) {
         static char buf[4];
         int fd = filemap[pevent->wd];
