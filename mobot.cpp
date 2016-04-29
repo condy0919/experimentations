@@ -1,6 +1,7 @@
 #include <boost/asio.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -30,7 +31,6 @@ Quotation HaQuotation(
      " ( ´∀`)σ 你们啊 naive！I am angry！ ヽ(｀Д´)ノ "
      "你们这样子是不行的，我今天是得罪了你们一下。",
      "暴力膜蛤不可取", "续一秒", "吃枣药丸", "天荒地老蛤不老，我为长者续一秒",
-     "你们不要整天胡搞毛搞，习习蛤蛤，有何江来，赶紧坐在邓子上喝你的胡辣汤",
      "春眠不觉晓，闷声续三秒", "Exciting！", "水能载舟 亦可赛艇！", "一颗赛艇",
      "我什么话也不说，这是最好的。但是我想我见到你们这样热情啊，一句话不说也不"
      "好。"});
@@ -67,7 +67,10 @@ public:
         : IRCBot(std::move(server), std::to_string(port)) {}
 
     IRCBot(std::string server, std::string port)
-        : server_(std::move(server)), port_(std::move(port)), sock_(service_) {
+        : server_(std::move(server)),
+          port_(std::move(port)),
+          beat_(service_, boost::posix_time::minutes(9)),
+          sock_(service_) {
         connect();
     }
 
@@ -76,6 +79,7 @@ public:
     }
 
     void start() {
+        beat_.async_wait(&IRCBot::timeout);
         service_.run();
     }
 
@@ -88,6 +92,7 @@ protected:
                     std::cerr << "[error] "
                               << boost::format("sent %d/%d") % sent % len
                               << '\n';
+                    throw "[error] exit";
                 }
             });
     }
@@ -111,19 +116,30 @@ protected:
                     std::getline(is, line);
                     if (line.compare(0, 4, "PING") == 0) {
                         async_write("PONG" + line.substr(4) + "\r\n");
+                        beat_.expires_from_now(boost::posix_time::minutes(9));
+                        beat_.async_wait(&IRCBot::timeout);
                     } else {
                         callback(line);
                     }
                     std::cout << "[info] " << line << '\n';
                 } else {
+                    std::string s(std::istreambuf_iterator<char>(buf_),
+                                  std::istreambuf_iterator<char>());
                     std::cerr << "[error] "
-                              << "read" << '\n';
+                              << "read " << s << '\n';
+                    throw "[error] exit";
                 }
                 async_read(callback);
             });
     }
 
 private:
+    static void timeout(const boost::system::error_code& ec) {
+        if (ec != boost::asio::error::operation_aborted) {
+            throw "[timeout] goodbye";
+        }
+    }
+
     void connect() {
         using namespace boost::asio;
         ip::tcp::resolver resolver(service_);
@@ -143,6 +159,7 @@ private:
     }
 
     boost::asio::io_service service_;
+    boost::asio::deadline_timer beat_;
     boost::asio::ip::tcp::socket sock_;
     boost::asio::streambuf buf_;
     std::string server_, port_;
@@ -181,15 +198,20 @@ public:
      */
     void mainloop() {
         auto fn = [this](std::string s) {
-            std::regex pattern(".* PRIVMSG (\\S+) :膜一下([\\S\\s]*)");
+            std::regex pattern(".* PRIVMSG (\\S+) :(膜|肛)一下([\\S\\s]*)");
             std::smatch match;
             if (std::regex_match(s, match, pattern)) {
                 if (match.ready()) {
                     std::string target = match[1].str();
                     std::string arg = boost::trim_right_copy(
-                        boost::trim_left_copy(match[2].str()));
+                        boost::trim_left_copy(match[3].str()));
 
-                    if (arg.empty()) {
+                    if (match[2].str() == "肛") {
+                        if (!arg.empty()) {
+                            auto bfmt = boost::format("%1% 啪啪啪") % arg;
+                            privmsg(bfmt.str(), target);
+                        }
+                    } else if (arg.empty()) {
                         privmsg(HaQuotation.pick(), target);
                     } else {
                         auto bfmt = boost::format(HaHaQuotation.pick()) % arg;
@@ -211,7 +233,14 @@ private:
 
 int main() {
     MoBot bot;
-    bot.nick("MoBot").user("MoBot").join({"#xiyoulinux"});
-    bot.mainloop();
+    bot.nick("MoBot")
+       .user("MoBot")
+       .join({"#xiyoulinux", "#archlinux-cn", "#linuxba", "##shuati"});
+    try {
+        bot.mainloop();
+    } catch (const char* str) {
+        std::cerr << str << '\n';
+        std::exit(-1);
+    }
     return 0;
 }
