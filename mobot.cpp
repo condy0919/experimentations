@@ -113,15 +113,17 @@ protected:
                     std::istream is(&buf_);
                     std::string line;
 
-                    std::getline(is, line);
-                    if (line.compare(0, 4, "PING") == 0) {
-                        async_write("PONG" + line.substr(4) + "\r\n");
-                        beat_.expires_from_now(boost::posix_time::minutes(9));
-                        beat_.async_wait(&IRCBot::timeout);
-                    } else {
-                        callback(line);
+                    while (std::getline(is, line)) {
+                        if (line.compare(0, 4, "PING") == 0) {
+                            async_write("PONG" + line.substr(4) + "\r\n");
+                            beat_.expires_from_now(
+                                boost::posix_time::minutes(9));
+                            beat_.async_wait(&IRCBot::timeout);
+                        } else {
+                            callback(line);
+                        }
+                        std::cout << "[info] " << line << '\n';
                     }
-                    std::cout << "[info] " << line << '\n';
                 } else {
                     std::string s(std::istreambuf_iterator<char>(buf_),
                                   std::istreambuf_iterator<char>());
