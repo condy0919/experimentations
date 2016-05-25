@@ -125,8 +125,9 @@ protected:
                         std::cout << "[info] " << line << '\n';
                     }
                 } else {
-                    std::string s(std::istreambuf_iterator<char>(buf_),
-                                  std::istreambuf_iterator<char>());
+                    boost::asio::streambuf::const_buffers_type bufs = buf_.data();
+                    std::string s(boost::asio::buffers_begin(bufs),
+                                  boost::asio::buffers_end(bufs));
                     std::cerr << "[error] "
                               << "read " << s << '\n';
                     throw "[error] exit";
