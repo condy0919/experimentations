@@ -16,10 +16,7 @@
 namespace lambda {
 namespace detail {
 template <typename R, typename TupleType, size_t... I>
-auto helper(std::index_sequence<I...>) {
-    using t = std::function<R(std::tuple_element_t<I, TupleType>...)>;
-    return t();
-}
+auto helper(std::index_sequence<I...>) -> std::function<R(std::tuple_element_t<I, TupleType>...)>;
 
 template <size_t N>
 struct drop {
