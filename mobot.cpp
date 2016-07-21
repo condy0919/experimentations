@@ -69,7 +69,7 @@ public:
     IRCBot(std::string server, std::string port)
         : server_(std::move(server)),
           port_(std::move(port)),
-          beat_(service_, boost::posix_time::minutes(9)),
+          beat_(service_),
           sock_(service_) {
         connect();
     }
@@ -106,24 +106,25 @@ protected:
     }
 
     void async_read(std::function<void(std::string)> callback) {
+        beat_.expires_from_now(boost::posix_time::minutes(5));
+        beat_.async_wait(&IRCBot::timeout);
+
         boost::asio::async_read_until(
             sock_, buf_, "\r\n",
             [this, callback](boost::system::error_code ec, size_t sent) {
                 if (!ec) {
+                    beat_.cancel_one(ec);
+
                     std::istream is(&buf_);
                     std::string line;
 
-                    while (std::getline(is, line)) {
-                        if (line.compare(0, 4, "PING") == 0) {
-                            async_write("PONG" + line.substr(4) + "\r\n");
-                            beat_.expires_from_now(
-                                boost::posix_time::minutes(9));
-                            beat_.async_wait(&IRCBot::timeout);
-                        } else {
-                            callback(line);
-                        }
-                        std::cout << "[info] " << line << '\n';
+                    std::getline(is, line);
+                    if (line.compare(0, 4, "PING") == 0) {
+                        async_write("PONG" + line.substr(4) + "\n");
+                    } else {
+                        callback(line);
                     }
+                    std::cout << "[info] " << line << '\n';
                 } else {
                     boost::asio::streambuf::const_buffers_type bufs = buf_.data();
                     std::string s(boost::asio::buffers_begin(bufs),
