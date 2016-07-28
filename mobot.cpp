@@ -199,24 +199,32 @@ public:
      */
     void mainloop() {
         auto fn = [this](std::string s) {
-            std::regex pattern(".* PRIVMSG (\\S+) :(膜|肛)一下([\\S\\s]*)");
+            std::regex pattern(".* PRIVMSG (\\S+) :(膜一下|肛一下|不愧是)([\\S\\s]*)");
             std::smatch match;
             if (std::regex_match(s, match, pattern)) {
                 if (match.ready()) {
                     std::string target = match[1].str();
                     std::string arg = boost::trim_right_copy(
                         boost::trim_left_copy(match[3].str()));
+                    std::string action = match[2].str();
 
-                    if (match[2].str() == "肛") {
-                        if (!arg.empty()) {
-                            auto bfmt = boost::format("%1% 啪啪啪") % arg;
-                            privmsg(bfmt.str(), target);
+                    if (action == "膜一下") {
+                        if (arg.empty()) {
+                            privmsg(HaQuotation.pick(), target);
+                        } else {
+                            privmsg(str(boost::format(HaHaQuotation.pick()) % arg),
+                                    target);
                         }
-                    } else if (arg.empty()) {
-                        privmsg(HaQuotation.pick(), target);
-                    } else {
-                        auto bfmt = boost::format(HaHaQuotation.pick()) % arg;
-                        privmsg(bfmt.str(), target);
+                    } else if (action == "肛一下") {
+                        if (arg.empty()) {
+                            privmsg(str(boost::format("%1% 啪啪啪") % arg),
+                                    target);
+                        }
+                    } else if (action == "不愧是") {
+                        if (arg.empty()) {
+                            privmsg(str(boost::format("%1% 赛高啊") % arg),
+                                    target);
+                        }
                     }
                 }
             }
