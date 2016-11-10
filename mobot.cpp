@@ -12,18 +12,19 @@
 namespace {
 class Quotation {
 public:
-    Quotation(std::vector<std::string> svec) : svec_(std::move(svec)) {}
+    Quotation(std::vector<std::string> svec)
+        : svec_(std::move(svec)), dis_(0, svec_.size() - 1) {}
 
-    std::string pick() const {
-        std::random_device rd;
-        std::default_random_engine generator(rd());
-        std::uniform_int_distribution<int> dis(0, svec_.size() - 1);
-        int dice_roll = dis(generator);
+    std::string pick() {
+        int dice_roll = dis_(generator_);
         return svec_[dice_roll];
     };
 
 private:
     const std::vector<std::string> svec_;
+
+    std::default_random_engine generator_;
+    std::uniform_int_distribution<int> dis_;
 };
 
 Quotation HaQuotation(
@@ -216,7 +217,9 @@ public:
                                     target);
                         }
                     } else if (action == "肛一下") {
-                        if (!arg.empty()) {
+                        if (arg.empty()) {
+                            privmsg("人家才不要被肛了啦！", target);
+                        } else {
                             privmsg(str(boost::format("%1% 啪啪啪") % arg),
                                     target);
                         }
